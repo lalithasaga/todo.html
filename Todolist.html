@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>To-Do List</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
+    <style>
+        .delete-icon {
+            color:red;
+            cursor:pointer;
+        }
+        .task-description {
+            white-space: nowrap;
+            overflow:hidden;
+            text-overflow: ellipsis;
+        }
+        .task-actions {
+            text-align: center;
+        }
+        .completed-task {
+            text-decoration: line-through;
+            opacity: 0.5;
+        }
+    </style>
+</head>
+<body>
+    <div class="container mt-4">
+        <h1>To-Do List</h1>
+        <form id="todo-form">
+            <div class="form-group">
+                <label for="task-name">Task Name:</label>
+                <input type="text" class="form-control" id="task-name" required>
+            </div>
+            <div class="form-group">
+                <label for="task-description">TaskDescription:</label>
+                <input type="text" class="form-control" id="task-description" required>
+            </div>
+            <button type="submit" class="btn btn-primary">Add Task</button>
+        </form>
+        <div class="row mt-4">
+            <div class="col">
+                <h3>To Do</h3>
+                <table class="table">
+                    <tbody id="todo-list"></tbody>
+                </table>
+            </div>
+            <div class="col">
+                <h3>Completed</h3>
+                <table class="table">
+                    <tbody id="completed-list"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+    <script>
+        let tasks=[];
+        function displayTasks() {
+            let todoList='';
+            let completedList='';
+            tasks.forEach(function(task,index) {
+                const taskRow = `
+                <tr ${task.completed ? 'class="completed-task"': ''}>
+                <td>${task.name}</td>
+                <td class="task-description">${task.description}</td>
+                <td class="task-actions">
+                <span class="delete-icon" data-index="${index}">&times;</span>
+                <input type="checkbox" class="task-checkbox" data-index="${index}"${task.completed ?
+                'checked':''}>
+                </td>
+                </tr>
+            `;
+            if(task.completed) {
+                completedList += taskRow;
+            } else {
+                todoList += taskRow;
+            }
+            });
+            $('#todo-list').html(todoList);
+            $('#completed-list').html(completedList);
+        }
+        function addTask(task) {
+            fetch('https://crudcrud.com/api/491e68bb3aea41968f9925b977be87cf/tasks', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body:JSON.stringify(task)
+            })
+            .then(response => response.json())
+            .then(data => {
+                tasks.push(data);
+                displayTasks();
+            })
+            .catch(error => console.error('Error adding task:' , error));
+        }
+        function deleteTask(index) {
+            fetch('https://crudcrud.com/api/491e68bb3aea41968f9925b977be87cf/tasks/${tasks[index]._id}', {
+                method: 'DELETE'
+            })
+            .then(() => {
+                tasks.splice(index ,1);
+                displayTasks();
+            })
+            .catch(error => console.error ('Error deleting task:' , error));
+        }
+        function updateTask(index, completed) {
+            const taskId = tasks[index]._id;
+            fetch(`https://crudcrud.com/api/491e68bb3aea41968f9925b977be87cf/tasks/${taskId}`,{
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({completed:completed})
+            })
+            .then(response => response.json())
+            .then(data => {
+                tasks[index] = data;
+                if(completed) {
+                    moveTaskToCompleted(index);
+                }
+                displayTasks();
+            })
+            .catch(error => connsole.error('Error updating task:' , error));
+        }
+        function moveTaskToCompleted(index) {
+            const completedTask = tasks.splice(index , 1)[0];
+            completedTask.completed = true;
+            tasks.push(completedTask);
+        }
+        $('#todo-form').submit(function (e)  {
+            e.preventDefault();
+            const name =$('#task-name').val();
+            const description = $('#task-description').val();
+            if(name && description) {
+                const task = {
+                    name:name,
+                    description:description,
+                    completed:false
+                };
+                addTask(task);
+                $('#task-name').val('');
+                $('#task-description').val('');
+            }
+        });
+        $('#todo-list , #completed-list').on
+        ('click','delete-icon',function()
+        {
+            const index=$(this).data('index');
+            deleteTask(index);
+        });
+        $('#todo-list, #completed-list').on
+        ('change', 'task-checkbox', function() {
+            const index=$(this).data('index');
+                        const completed=$(this).prop('checked');
+                        updateTask(index, completed);
+        });
+        fetch('https://crudcrud.com/api/491e68bb3aea41968f9925b977be87cf/tasks')
+        .then(response => response.json())
+        .then(data => {
+            tasks = data;
+            displayTasks();
+        })
+        .catch(error => console.error('Error fetching tasks:' , error));
+    </script>
+</body>
+</html>
